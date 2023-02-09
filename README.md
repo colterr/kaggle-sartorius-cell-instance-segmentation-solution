@@ -1,32 +1,34 @@
 # Sartorius - Cell Instance Segmentation
+本项目是基于[tasj](https://github.com/tascj) 的项目[kaggle-sartorius-cell-instance-segmentation-solution
+](https://github.com/tascj/kaggle-sartorius-cell-instance-segmentation-solution) 修改的
 
+比赛地址：
 https://www.kaggle.com/c/sartorius-cell-instance-segmentation
 
-## Environment setup
+## 环境搭建
 
-Build docker image
-
+建立docker镜像
 ```
 bash .dev_scripts/build.sh
 ```
 
-Set env variables
+设置环境变量
 
 ```
 export DATA_DIR="/path/to/data"
 export CODE_DIR="/path/to/this/repo"
 ```
 
-Start a docker container
+开启docker容器
 ```
 bash .dev_scripts/start.sh all
 ```
 
-## Data preparation
+## 数据准备
 
-1. Download competition data from Kaggle
-2. Download LIVECell dataset from https://github.com/sartorius-research/LIVECell (we didn't use the data provided by Kaggle)
-3. Unzip the files as follows
+1. 下载比赛数据集
+2. 下载[LIVECell](https://github.com/sartorius-research/LIVECell) 数据集
+3. 按如下格式解压全部数据
 
 ```
 ├── LIVECell_dataset_2021
@@ -39,7 +41,7 @@ bash .dev_scripts/start.sh all
 └── train.csv
 ```
 
-Start a docker container and run the following commands
+启动docker容器并执行如下指令
 
 ```
 mkdir /data/checkpoints/
@@ -47,7 +49,7 @@ python tools/prepare_livecell.py
 python tools/prepare_kaggle.py
 ```
 
-The results should look like the 
+结果应如下所示
 
 ```
 ├── LIVECell_dataset_2021
@@ -67,37 +69,37 @@ The results should look like the
 └── dval_g0.json
 ```
 
-## Training
+## 训练
 
-Download COCO pretrained YOLOX-x weights from https://github.com/Megvii-BaseDetection/YOLOX
+下载COCO预训练的YOLOX-x模型权重 https://github.com/Megvii-BaseDetection/YOLOX
 
-Convert the weights
+转换权重格式
 
 ```
 python tools/convert_official_yolox.py /path/to/yolox_x.pth /path/to/data/checkpoints/yolox_x_coco.pth
 ```
 
-Start a docker container and run the following commands for training
+在docker容器中执行如下指令开始训练
 
 ```
-# train detector using the LIVECell dataset
+# 使用LIVECell数据集预训练检测器
 python tools/det/train.py configs/det/yolox_x_livecell.py
 
-# predict bboxes of LIVECell validataion data
+# 使用检测器在LIVECell验证集上推理
 python tools/det/test.py configs/det/yolox_x_livecell.py work_dirs/yolox_x_livecell/epoch_30.pth --out work_dirs/yolox_x_livecell/val_preds.pkl --eval bbox
 
-# finetune the detector on competition data(train split)
+# 在比赛数据上微调检测器
 python tools/det/train.py configs/det/yolox_x_kaggle.py --load-from work_dirs/yolox_x_livecell/epoch_15.pth
 
-# predict bboxes of competition data(val split)
+# 使用检测器在比赛数据验证集上推理
 python tools/det/test.py configs/det/yolox_x_kaggle.py work_dirs/yolox_x_kaggle/epoch_30.pth --out work_dirs/yolox_x_kaggle/val_preds.pkl --eval bbox
 
-# train segmentor using LIVECell dataset
+# 使用LIVECell数据集预训练分割器
 python tools/seg/train.py configs/seg/upernet_swin-t_livecell.py
 
-# finetune the segmentor on competition data(train split)
+# 在比赛数据上微调分割器
 python tools/seg/train.py configs/seg/upernet_swin-t_kaggle.py --load-from work_dirs/upernet_swin-t_livecell/epoch_1.pth
 
-# predict instance masks of competition data(val split)
+# 预测比赛数据验证集的分割掩膜
 python tools/seg/test.py configs/seg/upernet_swin-t_kaggle.py work_dirs/upernet_swin-t_kaggle/epoch_10.pth --out work_dirs/upernet_swin-t_kaggle/val_results.pkl --eval dummy
 ```
